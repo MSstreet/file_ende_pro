@@ -34,8 +34,6 @@ int EncryptandDecrypt(uint8_t* hex_key, uint32_t cipher_id){
 
 	EDGE_CIPHER_PARAMETERS param;
 
-	//edge_random_byte(iv, iv_len);
-
 	memset(&param, 0, sizeof(EDGE_CIPHER_PARAMETERS));
 
 	param.m_mode = EDGE_CIPHER_MODE_CFB;
@@ -113,8 +111,7 @@ int EncryptandDecrypt(uint8_t* hex_key, uint32_t cipher_id){
 }
 
 int fileDec(FILE* encFile, EDGE_CIPHER_PARAMETERS* param, void* ctx, uint32_t cipher_id, uint8_t* key, uint32_t key_len){
-
-	//FILE* encFile = fopen("encFile.txt", "rb");
+	
         FILE* decFile = fopen("decFile.txt", "wa+");
 
 	uint8_t cryped_data[1024] = { 0x00, };
@@ -152,8 +149,6 @@ int fileDec(FILE* encFile, EDGE_CIPHER_PARAMETERS* param, void* ctx, uint32_t ci
 		return res;
 	}
 
-	printf("======================================================================\n");
-
 	while((read_len = fread(cryped_data,sizeof(uint8_t), 1024, encFile)) != 0){
 		
 		printf("Enc Contents at Dec Function %s\n",cryped_data);
@@ -166,12 +161,9 @@ int fileDec(FILE* encFile, EDGE_CIPHER_PARAMETERS* param, void* ctx, uint32_t ci
 		decrypted_len_total += dec_data_len;
 
 	}
-	printf("======================================================================\n");
-
+	
 	printf("decrypted_len_total at decFunction : %d\n", decrypted_len_total);
 	printf("dec_data_len at decFunction : %d\n", dec_data_len);
-
-	//decrypted_len_total += dec_data_len;
 	
 	res = edge_dec_final(ctx, NULL, NULL, &padding);
 
@@ -184,8 +176,7 @@ int fileDec(FILE* encFile, EDGE_CIPHER_PARAMETERS* param, void* ctx, uint32_t ci
 
 	printf("dec_data_len at decFunction : %d\n", dec_data_len);
 	printf("padding at decFunction : %d\n", padding);
-	printf("======================================================================\n");
-
+	
 	decrypted_len_total += dec_data_len;
 
 	fileWrite(decryped_data, decFile, decrypted_len_total - padding);
