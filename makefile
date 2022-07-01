@@ -3,6 +3,7 @@ CC = gcc
 INC = -I./include/
 LIB_DIRS = -L./lib/
 
+
 TARGET = OperEndefile
 LIBS = -lEdgeCrypto
 
