@@ -5,10 +5,13 @@
 #include <string.h>
 #include "edge_crypto.h"
 
+#define		FILE_SIZE		1024
+
 #define 	CONVERT_OK		1
 
 #define		ERR			10000
 #define		DATA_ERR		(ERR + 1)
+
 
 int WriteKeyIv(char* key, int key_len, char* iv, int iv_len);
 int fileWrite(char* data, FILE* fp, int data_len);

@@ -20,12 +20,8 @@ int main(){
 	}
 
 	edge_random_byte(key, keylength);
-
-	printf("key at main : %s\n",key);
-
+	
 	dataToHex(key, keylength, hex_key, &hex_key_len);
-			
-	printf("hexkey at main : %s\n", hex_key);
 				
 	res = EncryptandDecrypt(hex_key, cipher_id);
 	if(res != CONVERT_OK){

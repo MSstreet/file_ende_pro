@@ -11,14 +11,19 @@ int EncryptandDecrypt(uint8_t* hex_key, uint32_t cipher_id){
 	uint8_t key[16] = { 0x00, }; 
 	uint32_t key_len = 16;       
 	
-	uint8_t crypted[1024] = { 0x00, };
+	uint8_t crypted[FILE_SIZE] = { 0x00, };
 	uint32_t crypted_len = 0;
 	
 	uint32_t crypted_len_total = 0;
 	
-	uint8_t org[1024] = { 0x00, }; 
+	uint8_t org[FILE_SIZE] = { 0x00, }; 
 	uint32_t org_len = 0;
+
+	uint32_t f_size = 0;
+	uint32_t f_check = 0;
 	
+	uint32_t tmp_len = 0;
+
 	FILE* orgFile = fopen("orgFile.txt", "r");
 	FILE* encFile = fopen("encFile.txt", "wb");
 	
@@ -31,7 +36,7 @@ int EncryptandDecrypt(uint8_t* hex_key, uint32_t cipher_id){
 	
 	void* ctx =  NULL;
 	ctx = edge_ctx_new();
-
+	
 	EDGE_CIPHER_PARAMETERS param;	
 	memset(&param, 0, sizeof(EDGE_CIPHER_PARAMETERS));
 	
@@ -43,21 +48,58 @@ int EncryptandDecrypt(uint8_t* hex_key, uint32_t cipher_id){
 	
 	hexToData(hex_key, 32, key, &key_len);
 	
-	printf("key at EnDec Funtion : %s\n",key);
-	
-	printf("key len : %d\n",key_len);
-		
+	fseek(orgFile, 0, SEEK_END); 
+	f_size = ftell(orgFile);  
+	fseek(orgFile, 0, SEEK_SET);  
+
 	res = edge_enc_init(ctx, cipher_id, key, key_len, &param);
 	if(res != 0){
 		printf("Error Code : %d\n", res);
 		return res;
 	}
 
-	while((org_len = fread(org, sizeof(uint8_t), 1024, orgFile)) != 0){
-	
-		//printf("org contents at EndeFunc : %s\n", org);
-		//printf("org contents at EndeFunc : %d\n", org_len);
+	while((org_len = fread(org, sizeof(uint8_t), FILE_SIZE, orgFile)) != 0){
 
+		if(FILE_SIZE >= f_size){ //less then 1024 
+			
+			res = edge_enc_update(ctx, org, org_len, crypted, &crypted_len);
+			if(res != 0){
+				printf("Error Code : %d\n", res);
+				return res;
+			}
+			
+			tmp_len = crypted_len;	
+
+			res = edge_enc_final(ctx, crypted + tmp_len, &crypted_len);
+			if(res != 0){
+				printf("Error Code : %d\n", res);
+				return res;
+			}
+			
+			tmp_len += crypted_len;
+
+			fileWrite(crypted, encFile, tmp_len); 		
+			
+		}
+		
+		else{ //more then 1024
+
+			res = edge_enc_update(ctx, org, org_len, crypted, &crypted_len);
+			if(res != 0){
+				printf("Error Code : %d\n", res);
+				return res;
+			}
+			
+			fileWrite(crypted, encFile, crypted_len);
+
+		}
+
+		f_size -= org_len;
+
+		memset(org, 0, FILE_SIZE);
+		memset(crypted, 0, FILE_SIZE);
+
+		/*
 		res = edge_enc_update(ctx, org, org_len,crypted, &crypted_len);
 		if(res != 0){
 			printf("Error Code : %d\n", res);
@@ -65,30 +107,44 @@ int EncryptandDecrypt(uint8_t* hex_key, uint32_t cipher_id){
 		}		
 			
 		fileWrite(crypted, encFile, crypted_len);		
-		
+	
 		crypted_len_total += crypted_len;
+		
+		org_len_total += org_len;
+		tmp_check += 16;
+
+		//printf("org len at EndeFunction : %d\n",org_len);
 
 		memset(org, 0, 1024);
 		memset(crypted, 0, 1024);
+		*/
+		
 	}
-	printf("crypted at EndeFunction : %s\n", crypted);
-
-	printf("crypted_len_total at EndeFunction : %d\n", crypted_len_total);
 	
-	printf("crypted_len at EndeFunction : %d\n", crypted_len);	
+	fclose(orgFile); 
+	fclose(encFile);
+
+	encFile = fopen("encFile.txt","rb");  
+	fileDec(encFile, &param, ctx, cipher_id, key, key_len); 
+
+	edge_ctx_free(ctx);
+
+	//printf("crypted at EndeFunction : %s\n", crypted);
+
+	//printf("crypted_len_total at EndeFunction : %d\n", crypted_len_total);
+	
+	//printf("crypted_len at EndeFunction : %d\n", crypted_len);	
 	
 	//crypted_len_total += crypted_len; /////////////////////////////////////
-	
-	printf("org_len at EndeFunction : %d\n", org_len);	
-
-	printf("crypted at EndeFunction : %s\n", crypted);
-
+		
 	//res = edge_enc_final(ctx, crypted + org_len, &crypted_len);
 	
-	res = edge_enc_final(ctx, crypted, &crypted_len);
+	//res = edge_enc_final(ctx, crypted, &crypted_len);
+		
 	//res = edge_enc_final(ctx, NULL, &crypted_len);
 	//res = edge_enc_final(ctx, crypted + crypted_len_total, &crypted_len);
 	
+	/*
 	if(res != 0){
 		printf("Error Code : %d\n", res);
 		return res;
@@ -100,12 +156,7 @@ int EncryptandDecrypt(uint8_t* hex_key, uint32_t cipher_id){
 	printf("crypted_len at EndeFunction : %d\n", crypted_len);
 	
 	fileWrite(crypted, encFile,crypted_len);
-	
-	//fileWrite(crypted + org_len, encFile,crypted_len);
-	//fileWrite(crypted + crypted_len_total, encFile,crypted_len);
-	
-	//printf("enc Data at EndeFunc : %s\n", crypted  + org_len);
-	
+		
 	fclose(orgFile);
 	fclose(encFile);
 
@@ -113,7 +164,7 @@ int EncryptandDecrypt(uint8_t* hex_key, uint32_t cipher_id){
 
 	fileDec(encFile, &param, ctx, cipher_id, key, key_len);	
 
-	edge_ctx_free(ctx);
+	edge_ctx_free(ctx);*/
 
 	return CONVERT_OK;
 
@@ -123,8 +174,8 @@ int fileDec(FILE* encFile, EDGE_CIPHER_PARAMETERS* param, void* ctx, uint32_t ci
 	
         FILE* decFile = fopen("decFile.txt", "wa+");
 
-	uint8_t cryped_data[1024] = { 0x00, };
-	uint8_t decryped_data[1024] = { 0x00, };
+	uint8_t cryped_data[FILE_SIZE] = { 0x00, };
+	uint8_t decryped_data[FILE_SIZE] = { 0x00, };
 	
 	uint8_t Deckey[16] = { 0x00, };
 	uint8_t Deckey_len = 16;
@@ -134,7 +185,11 @@ int fileDec(FILE* encFile, EDGE_CIPHER_PARAMETERS* param, void* ctx, uint32_t ci
 	uint32_t read_len = 0;
 	uint32_t dec_data_len = 0; 	
 	uint32_t padding = 0;
+	
+	uint32_t tmp_len = 0;
 
+	uint32_t f_size = 0;
+	
 	int res = 0;
 	int i = 0;
 
@@ -148,56 +203,98 @@ int fileDec(FILE* encFile, EDGE_CIPHER_PARAMETERS* param, void* ctx, uint32_t ci
 	}
 
 	printf("DecKey at DecFunction : %s\n", Deckey);
-	
-	//printf("Key at Dec Function : %s\n", key);
-
+		
 	res = edge_dec_init(ctx, cipher_id, Deckey, Deckey_len, param);
 	if(res != 0){
 		printf("Error Code : %d\n", res);
 		return res;
 	}
-	
-	i = 0;
 
-	while((read_len = fread(cryped_data,sizeof(uint8_t), 1024, encFile)) != 0){
-		
-		printf("Enc Contents at Dec Function %s\n",cryped_data);
+	fseek(encFile, 0, SEEK_END);
+	f_size = ftell(encFile);
+	fseek(encFile, 0, SEEK_SET);
 	
+	while((read_len = fread(cryped_data,sizeof(uint8_t), FILE_SIZE, encFile)) != 0 ){
+
+			
+		//FILE_SIZE = 1024;
+		if(FILE_SIZE >= f_size){ //less then 1024
+			
+			res = edge_dec_update(ctx, cryped_data, read_len, decryped_data,&dec_data_len);
+			if(res != 0){
+				printf("Error Code : %d\n", res);
+				return res;
+			}
+			
+                       tmp_len = dec_data_len;
+			printf("padding at decfunc : %d\n",padding);
+		       
+		       res = edge_dec_final(ctx,decryped_data,&dec_data_len,&padding);
+		       if(res != 0){
+		       		printf("Error Code : %d\n", res);
+				return res;
+		       }
+	  	
+
+			printf("padding at decfunc : %d\n",padding); 
+
+			fileWrite(decryped_data,decFile,tmp_len-padding);	       
+
+		}
+			
+		else{ //more then 1024
+					
+			res = edge_dec_update(ctx, cryped_data, read_len, decryped_data,&dec_data_len);
+			
+			fileWrite(decryped_data, decFile, dec_data_len);		
+
+			
+		}
+
+		f_size -= read_len;
+		
+		/*
 		res = edge_dec_update(ctx,cryped_data,read_len,decryped_data,&dec_data_len);
 		if(res != 0){
 			printf("Error Code : %d\n", res);
 			return res;
 		}
-		
-		fwrite(decryped_data,sizeof(uint8_t), dec_data_len, decFile);
-				
-		decrypted_len_total += dec_data_len;
-		i++;
-	
-	}
-	
-	printf("%d\n",i);
-	
-	printf("decrypted_len_total at decFunction : %d\n", decrypted_len_total);
-	printf("dec_data_len at decFunction : %d\n", dec_data_len);
-	
-	res = edge_dec_final(ctx, NULL, NULL, &padding);
-	//res = edge_dec_final(ctx, decryped_data + decrypted_len_total, &dec_data_len, &padding);
-	//res = edge_dec_final(ctx, decryped_data, &dec_data_len, &padding);
-	if(res != 0){
-		printf("Error Code : %d\n", res);
-		return res;
-	}
+		*/
 
+		//printf("dec_data_len at decFunction : %d\n", dec_data_len);
+
+		//decrypted_len_total += dec_data_len;
+				
+		memset(cryped_data, 0, FILE_SIZE);
+		memset(decryped_data, 0, FILE_SIZE);
+	
+	}
+		
+	//printf("decrypted_len_total at decFunction : %d\n", decrypted_len_total);
+	//printf("dec_data_len at decFunction : %d\n", dec_data_len);
+	
+	//res = edge_dec_final(ctx, NULL, NULL, &padding);
+	//res = edge_dec_final(ctx, decryped_data + decrypted_len_total, &dec_data_len, &padding);
+		
+	//res = edge_dec_final(ctx, NULL, NULL, &padding);
+	
+	//res = edge_dec_final(ctx, cryped_data, &dec_data_len, &padding);
+	//if(res != 0){
+	//	printf("Error Code : %d\n", res);
+	//	return res;
+	//}
+	/*
 	printf("dec_data_len at decFunction : %d\n", dec_data_len);
 	
 	printf("padding at decFunction : %d\n", padding);
+
+	printf("decryped_data at decFunction : %s\n", decryped_data);
+	*/
+	//decrypted_len_total += dec_data_len;
+
+	//fileWrite(decryped_data, decFile,dec_data_len -padding );
 	
-	decrypted_len_total += dec_data_len;
-	
-	fileWrite(decryped_data, decFile, dec_data_len - padding);
-	
-	//fileWrite(decryped_data, decFile, decrypted_len_total - padding);
+	//fileWrite(decryped_data, decFile, dec_data_len - padding);
 
 	fclose(encFile);
 	fclose(decFile);
